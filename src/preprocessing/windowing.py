@@ -45,3 +45,29 @@ def segment_eeg_signals(data, fs=256, window_duration=1.0, overlap_percentage=0.
         windows = np.squeeze(windows, axis=1)
         
     return windows
+import numpy as np
+
+def window_labels_by_vote(y_samples, window_size=256, overlap=128):
+    """
+    Segmenta el vector de etiquetas muestra a muestra y asigna una única 
+    etiqueta por ventana mediante voto mayoritario (un umbral del 50%).
+    """
+    total_samples = len(y_samples)
+    step = window_size - overlap
+    
+    # Calcular cuántas ventanas enteras entran en el registro
+    num_windows = (total_samples - window_size) // step + 1
+    y_windows = np.zeros(num_windows, dtype=int)
+    
+    for i in range(num_windows):
+        start_idx = i * step
+        end_idx = start_idx + window_size
+        
+        # Extraemos las 256 etiquetas de este bloque
+        window_segment = y_samples[start_idx:end_idx]
+        
+        # Si más de la mitad del bloque (128 muestras) es crisis, la ventana es 1
+        if np.sum(window_segment) > (window_size / 2):
+            y_windows[i] = 1
+            
+    return y_windows
