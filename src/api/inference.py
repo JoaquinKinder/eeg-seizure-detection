@@ -66,31 +66,11 @@ def process_and_predict_edf(edf_path, window_size=256, step=128):
         
     X_file = np.array(lista_X_file)
     
-    print("Calibrando la línea base del paciente (5 minutos)...")
-    full_pipeline = get_model()
+    print("Ejecutando inferencia con Random Forest (Pipeline Global)...")
+    clf = get_model()
     
-    # Extraer el Random Forest del pipeline guardado
-    # El pipeline guardado es: ImbPipeline(smote, rus, clf=Pipeline(scaler, rf))
-    try:
-        rf_model = full_pipeline.named_steps['clf'].named_steps['clf']
-    except Exception as e:
-        print("Fallback: asumiendo que el modelo directo es el clasificador")
-        rf_model = full_pipeline
-    
-    # 5 minutos = 300 segundos = 600 ventanas (porque el paso es de 0.5s)
-    # Tomamos como máximo el 20% del archivo si es muy corto
-    N_baseline = min(600, max(10, int(len(X_file) * 0.2)))
-    
-    baseline_data = X_file[:N_baseline]
-    
-    local_scaler = StandardScaler()
-    local_scaler.fit(baseline_data)
-    
-    X_file_scaled = local_scaler.transform(X_file)
-    
-    print("Ejecutando inferencia con Random Forest adaptado...")
-    # Predicción de probabilidades usando los datos escalados localmente
-    y_pred_proba = rf_model.predict_proba(X_file_scaled)[:, 1]
+    # Predicción de probabilidades usando el pipeline original (incluye StandardScaler global)
+    y_pred_proba = clf.predict_proba(X_file)[:, 1]
     
     # Histéresis
     y_pred_smooth = apply_hysteresis_logic(

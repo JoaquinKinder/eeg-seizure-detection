@@ -31,8 +31,8 @@ export default function PredictPage() {
     formData.append('file', file)
 
     try {
-      // Usar la IP del servidor de FastAPI (por defecto localhost:8000)
-      const res = await fetch('http://localhost:8000/predict', {
+      // Usar proxy /api para que funcione desde otras compus en el mismo WIFI
+      const res = await fetch('/api/predict', {
         method: 'POST',
         body: formData,
       })
@@ -95,8 +95,8 @@ export default function PredictPage() {
         {loading && (
           <div className={styles.loadingBox}>
             <div className={styles.spinner} />
-            <p>Aplicando Pipeline (MNE -&gt; Wavelets db4 -&gt; Calibración de Línea Base -&gt; RF -&gt; Histéresis)...</p>
-            <p className={styles.loadingSub}>El modelo se está auto-calibrando usando los primeros 5 minutos del paciente.</p>
+            <p>Aplicando Pipeline (MNE -&gt; Wavelets db4 -&gt; RF -&gt; Histéresis)...</p>
+            <p className={styles.loadingSub}>Dependiendo del largo del EDF, esto puede tardar varios minutos.</p>
           </div>
         )}
 
