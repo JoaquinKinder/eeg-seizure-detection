@@ -61,3 +61,47 @@ def compute_event_metrics(y_true, y_pred, fs=256, step_size=128):
         "Horas de Registro": total_horas,
         "Tasa de Falsas Alarmas (FA/h)": fa_per_hour
     }
+
+def compute_detection_latency(y_true, y_pred, fs=256, step_size=128):
+    """
+    Calcula la latencia de detección: tiempo en segundos entre el inicio real
+    anotado de la crisis y la primera ventana positiva detectada por el sistema.
+    
+    Una latencia positiva significa que el sistema detecta DESPUÉS del onset real
+    (retardo). Una latencia negativa significaría detección anticipada (raro).
+    
+    Parameters:
+    - y_true (ndarray): Etiquetas reales binarias (0: no-crisis, 1: crisis).
+    - y_pred (ndarray): Predicciones binarias del sistema (post-histéresis).
+    - fs (int): Frecuencia de muestreo original (256 Hz para CHB-MIT).
+    - step_size (int): Desplazamiento entre ventanas en muestras (128 = 50% overlap).
+    
+    Returns:
+    - latencia_segundos (float | None): Latencia en segundos. None si no hay crisis
+      real en y_true, o si el sistema no detectó ninguna crisis (falso negativo total).
+    """
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    
+    # Tiempo en segundos de cada ventana
+    segundos_por_ventana = step_size / fs  # 128/256 = 0.5 s por ventana
+    
+    # Buscar el índice de la primera ventana real de crisis
+    indices_reales = np.where(y_true == 1)[0]
+    if len(indices_reales) == 0:
+        # No hay crisis real en este segmento evaluado
+        return None
+    primer_onset_real = indices_reales[0]
+    
+    # Buscar el índice de la primera ventana detectada como crisis
+    indices_detectados = np.where(y_pred == 1)[0]
+    if len(indices_detectados) == 0:
+        # El sistema no detectó ninguna crisis (falso negativo total)
+        return None
+    primer_onset_detectado = indices_detectados[0]
+    
+    # Latencia = diferencia de ventanas × segundos por ventana
+    latencia_ventanas = primer_onset_detectado - primer_onset_real
+    latencia_segundos = latencia_ventanas * segundos_por_ventana
+    
+    return latencia_segundos

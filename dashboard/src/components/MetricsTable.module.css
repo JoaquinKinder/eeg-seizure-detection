@@ -1,0 +1,51 @@
+.section { margin-bottom: 44px; }
+.sectionTitle {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px; font-weight: 600; color: var(--text-primary);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 10px;
+}
+.sectionTitle::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.sectionDesc {
+  font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 20px; line-height: 1.7;
+}
+
+.tableWrap {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.table { width: 100%; border-collapse: collapse; }
+
+.table th {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-secondary);
+  padding: 14px 20px; text-align: left;
+  background: rgba(255,255,255,0.025); border-bottom: 1px solid var(--border);
+}
+.table th:first-child { color: var(--text-primary); font-size: 12px; }
+
+.table td {
+  padding: 14px 20px; font-size: 13px; color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: rgba(255,255,255,0.03); }
+
+.metricName { font-weight: 500; color: var(--text-primary); font-size: 14px; }
+
+.badgePS, .badgeLopo {
+  display: inline-block; padding: 2px 6px; border-radius: 4px;
+  font-size: 10px; font-weight: 600; margin-right: 6px;
+}
+.badgePS { background: rgba(99,179,237,0.15); color: var(--accent-blue); }
+.badgeLopo { background: rgba(159,122,234,0.15); color: var(--accent-purple); }
+
+.val { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; }
+.best { color: var(--accent-green); }
+.good { color: var(--accent-blue); }
+.warn { color: var(--accent-amber); }
+.bad  { color: var(--accent-red); }
+
+.legend { font-size: 12px; color: var(--text-muted); text-align: right; margin-right: 8px; }
