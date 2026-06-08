@@ -1,13 +1,16 @@
 @echo off
+:: Asegurar que el script corra en la carpeta correcta
+cd /d "%~dp0"
+
 echo ========================================================
 echo       EEG Seizure Detection - Dashboard Launcher
 echo ========================================================
 echo.
 
 IF NOT EXIST ".venv" (
-    echo [ADVERTENCIA] No se detecto el entorno virtual (.venv). 
-    echo Por favor, asegurate de instalar las dependencias primero.
-    echo.
+    echo [ADVERTENCIA] No se detecto el entorno virtual .venv
+    echo Por favor asegurate de instalar las dependencias primero.
+    echo/
     pause
 )
 
@@ -27,5 +30,5 @@ echo  Para apagar todo, simplemente cerra esas dos consolas.
 echo ========================================================
 echo.
 echo Abriendo el navegador...
-timeout /t 3 > nul
+ping 127.0.0.1 -n 4 > nul
 start http://localhost:5173
