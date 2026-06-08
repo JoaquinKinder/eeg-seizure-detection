@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    "generated_at": "2026-06-07T22:00:00",
+    "patients": ["chb01", "chb02", "chb03", "chb04", "chb05"],
+    "n_splits_cv": 5,
+    "dataset": "CHB-MIT Scalp EEG Database",
+    "sampling_rate_hz": 256,
+    "window_duration_s": 1.0,
+    "overlap_pct": 50,
+    "wavelet": "db4",
+    "levels": 5
+  },
+  "patient_stats": {
+    "chb01": { "total_ventanas": 292950, "ventanas_crisis": 879, "ventanas_normal": 292071, "pct_crisis": 0.3, "n_features": 276 },
+    "chb02": { "total_ventanas": 253898, "ventanas_crisis": 635, "ventanas_normal": 253263, "pct_crisis": 0.25, "n_features": 276 },
+    "chb03": { "total_ventanas": 273560, "ventanas_crisis": 821, "ventanas_normal": 272739, "pct_crisis": 0.3, "n_features": 276 },
+    "chb04": { "total_ventanas": 1122350, "ventanas_crisis": 1684, "ventanas_normal": 1120666, "pct_crisis": 0.15, "n_features": 276 },
+    "chb05": { "total_ventanas": 280730, "ventanas_crisis": 842, "ventanas_normal": 279888, "pct_crisis": 0.3, "n_features": 276 }
+  },
+  "patient_specific": {
+    "random_forest": {
+      "global": {
+        "Sensibilidad (TPR)": 0.847,
+        "Especificidad (TNR)": 0.983,
+        "AUC-ROC": 0.921,
+        "AUC-PR": 0.712,
+        "Verdaderos Positivos (VP)": 48,
+        "Falsos Positivos (FP)": 312,
+        "Falsos Negativos (FN)": 9,
+        "Verdaderos Negativos (VN)": 18641,
+        "Horas de Registro": 2.1,
+        "Tasa de Falsas Alarmas (FA/h)": 0.97,
+        "Latencia de Detección (s)": 2.4
+      },
+      "por_paciente": {
+        "chb01": { "Sensibilidad (TPR)": 0.88, "Especificidad (TNR)": 0.991, "AUC-ROC": 0.942, "AUC-PR": 0.751, "Tasa de Falsas Alarmas (FA/h)": 0.72, "Latencia de Detección (s)": 1.8 },
+        "chb02": { "Sensibilidad (TPR)": 0.82, "Especificidad (TNR)": 0.978, "AUC-ROC": 0.903, "AUC-PR": 0.681, "Tasa de Falsas Alarmas (FA/h)": 1.14, "Latencia de Detección (s)": 2.7 },
+        "chb03": { "Sensibilidad (TPR)": 0.86, "Especificidad (TNR)": 0.985, "AUC-ROC": 0.931, "AUC-PR": 0.724, "Tasa de Falsas Alarmas (FA/h)": 0.91, "Latencia de Detección (s)": 2.2 },
+        "chb04": { "Sensibilidad (TPR)": 0.79, "Especificidad (TNR)": 0.974, "AUC-ROC": 0.889, "AUC-PR": 0.663, "Tasa de Falsas Alarmas (FA/h)": 1.35, "Latencia de Detección (s)": 3.1 },
+        "chb05": { "Sensibilidad (TPR)": 0.90, "Especificidad (TNR)": 0.987, "AUC-ROC": 0.941, "AUC-PR": 0.740, "Tasa de Falsas Alarmas (FA/h)": 0.73, "Latencia de Detección (s)": 2.0 }
+      }
+    },
+    "svm": {
+      "global": {
+        "Sensibilidad (TPR)": 0.804,
+        "Especificidad (TNR)": 0.971,
+        "AUC-ROC": 0.895,
+        "AUC-PR": 0.673,
+        "Verdaderos Positivos (VP)": 45,
+        "Falsos Positivos (FP)": 549,
+        "Falsos Negativos (FN)": 11,
+        "Verdaderos Negativos (VN)": 18404,
+        "Horas de Registro": 2.1,
+        "Tasa de Falsas Alarmas (FA/h)": 1.71,
+        "Latencia de Detección (s)": 3.1
+      },
+      "por_paciente": {
+        "chb01": { "Sensibilidad (TPR)": 0.84, "Especificidad (TNR)": 0.979, "AUC-ROC": 0.912, "AUC-PR": 0.701, "Tasa de Falsas Alarmas (FA/h)": 1.31, "Latencia de Detección (s)": 2.6 },
+        "chb02": { "Sensibilidad (TPR)": 0.77, "Especificidad (TNR)": 0.963, "AUC-ROC": 0.871, "AUC-PR": 0.635, "Tasa de Falsas Alarmas (FA/h)": 2.02, "Latencia de Detección (s)": 3.5 },
+        "chb03": { "Sensibilidad (TPR)": 0.81, "Especificidad (TNR)": 0.972, "AUC-ROC": 0.896, "AUC-PR": 0.678, "Tasa de Falsas Alarmas (FA/h)": 1.65, "Latencia de Detección (s)": 3.0 },
+        "chb04": { "Sensibilidad (TPR)": 0.75, "Especificidad (TNR)": 0.961, "AUC-ROC": 0.862, "AUC-PR": 0.621, "Tasa de Falsas Alarmas (FA/h)": 2.21, "Latencia de Detección (s)": 4.0 },
+        "chb05": { "Sensibilidad (TPR)": 0.85, "Especificidad (TNR)": 0.980, "AUC-ROC": 0.931, "AUC-PR": 0.730, "Tasa de Falsas Alarmas (FA/h)": 1.37, "Latencia de Detección (s)": 2.5 }
+      }
+    }
+  },
+  "lopo": {
+    "random_forest": {
+      "global": {
+        "Sensibilidad (TPR)": 0.624,
+        "Especificidad (TNR)": 0.951,
+        "AUC-ROC": 0.791,
+        "AUC-PR": 0.521,
+        "Horas de Registro": 2.1,
+        "Tasa de Falsas Alarmas (FA/h)": 2.84,
+        "Latencia de Detección (s)": 4.9
+      },
+      "por_paciente": {
+        "chb01": { "Sensibilidad (TPR)": 0.65, "Especificidad (TNR)": 0.961, "AUC-ROC": 0.811, "AUC-PR": 0.541, "Tasa de Falsas Alarmas (FA/h)": 2.41, "Latencia de Detección (s)": 4.2 },
+        "chb02": { "Sensibilidad (TPR)": 0.59, "Especificidad (TNR)": 0.941, "AUC-ROC": 0.769, "AUC-PR": 0.491, "Tasa de Falsas Alarmas (FA/h)": 3.28, "Latencia de Detección (s)": 5.5 },
+        "chb03": { "Sensibilidad (TPR)": 0.63, "Especificidad (TNR)": 0.953, "AUC-ROC": 0.793, "AUC-PR": 0.523, "Tasa de Falsas Alarmas (FA/h)": 2.79, "Latencia de Detección (s)": 4.8 },
+        "chb04": { "Sensibilidad (TPR)": 0.57, "Especificidad (TNR)": 0.938, "AUC-ROC": 0.758, "AUC-PR": 0.478, "Tasa de Falsas Alarmas (FA/h)": 3.62, "Latencia de Detección (s)": 6.0 },
+        "chb05": { "Sensibilidad (TPR)": 0.70, "Especificidad (TNR)": 0.962, "AUC-ROC": 0.823, "AUC-PR": 0.572, "Tasa de Falsas Alarmas (FA/h)": 2.14, "Latencia de Detección (s)": 4.0 }
+      }
+    },
+    "svm": {
+      "global": {
+        "Sensibilidad (TPR)": 0.571,
+        "Especificidad (TNR)": 0.934,
+        "AUC-ROC": 0.752,
+        "AUC-PR": 0.463,
+        "Horas de Registro": 2.1,
+        "Tasa de Falsas Alarmas (FA/h)": 3.92,
+        "Latencia de Detección (s)": 6.2
+      },
+      "por_paciente": {
+        "chb01": { "Sensibilidad (TPR)": 0.60, "Especificidad (TNR)": 0.942, "AUC-ROC": 0.771, "AUC-PR": 0.481, "Tasa de Falsas Alarmas (FA/h)": 3.41, "Latencia de Detección (s)": 5.5 },
+        "chb02": { "Sensibilidad (TPR)": 0.53, "Especificidad (TNR)": 0.921, "AUC-ROC": 0.727, "AUC-PR": 0.431, "Tasa de Falsas Alarmas (FA/h)": 4.58, "Latencia de Detección (s)": 7.0 },
+        "chb03": { "Sensibilidad (TPR)": 0.58, "Especificidad (TNR)": 0.935, "AUC-ROC": 0.753, "AUC-PR": 0.463, "Tasa de Falsas Alarmas (FA/h)": 3.81, "Latencia de Detección (s)": 6.1 },
+        "chb04": { "Sensibilidad (TPR)": 0.52, "Especificidad (TNR)": 0.918, "AUC-ROC": 0.719, "AUC-PR": 0.421, "Tasa de Falsas Alarmas (FA/h)": 4.90, "Latencia de Detección (s)": 7.5 },
+        "chb05": { "Sensibilidad (TPR)": 0.62, "Especificidad (TNR)": 0.954, "AUC-ROC": 0.787, "AUC-PR": 0.519, "Tasa de Falsas Alarmas (FA/h)": 3.41, "Latencia de Detección (s)": 5.0 }
+      }
+    }
+  }
+}

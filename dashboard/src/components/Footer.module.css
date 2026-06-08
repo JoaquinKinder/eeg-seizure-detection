@@ -1,0 +1,9 @@
+.footer {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 32px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 20px;
+}
+.sub { margin-top: 6px; color: var(--text-muted); font-size: 12px; }

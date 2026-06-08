@@ -1,0 +1,214 @@
+﻿Hito 2 — Plan de Implementación · Detección de crisis epilépticas (EEG / CHB-MIT)
+Trabajo Práctico Integrador — Señales y Sistemas
+Hito 2 — Plan de Implementación
+Detección automática de crisis epilépticas mediante señales de EEG
+Simulación de I+D  ·  Base de datos CHB-MIT (23 canales, 256 Hz)  ·  Python / NumPy · SciPy · PyWavelets · scikit-learn
+Propósito del documento.  Este plan describe y justifica —con fundamento matemático, biológico y bibliográfico— cada decisión técnica del pipeline de detección de crisis epilépticas que el equipo implementará sobre la base CHB-MIT. El criterio rector es el de una simulación de I+D: toda elección de diseño se sustenta en evidencia y se evalúa empíricamente, priorizando la validez clínica por sobre las métricas optimistas de laboratorio. 
+Contenido
+
+
+
+
+________________
+
+
+1. Panel de Arquitectura (Diagrama de Bloques)
+El sistema se organiza como una cadena de procesamiento que transforma la señal cruda multicanal en una decisión binaria (crisis / no-crisis) con supresión de falsas alarmas. El flujo conceptual completo es el siguiente:
+ Diagrama de bloques del pipeline 
+
+Figura 1. Diagrama de flujo conceptual del pipeline de detección.
+Equivalente textual (notación de flujo):
+Señal Cruda → Preprocesamiento → Extracción de Características → Balanceo → Clasificador → Histéresis → Salida
+Cada bloque cumple una función verificable de forma aislada, lo que permite medir el aporte incremental de cada etapa (ablación). Los bloques de Balanceo y Clasificador pertenecen a la fase de aprendizaje; el resto opera idéntico en entrenamiento e inferencia.
+________________
+
+
+2. Panel de Datos y Preprocesamiento
+2.1  Datos: la base CHB-MIT
+Se utiliza la CHB-MIT Scalp EEG Database (Children's Hospital Boston – MIT), distribuida en PhysioNet. Reúne registros de scalp de 22 sujetos pediátricos con epilepsia refractaria (23 casos), muestreados a 256 Hz con 16 bits, mayoritariamente con 23 canales en montaje bipolar según el sistema 10-20, e incluye 198 crisis con su inicio y fin anotados por especialistas. El montaje bipolar (diferencias entre electrodos contiguos) es ventajoso para esta tarea porque atenúa el ruido de modo común y la actividad no cerebral correlacionada entre canales. Su principal limitación —solo 23 sujetos— obliga a discutir con cuidado la generalización (Sección 4).
+2.2  Ventaneo: ventanas de 1 s con solapamiento del 50 %
+La señal continua se segmenta en ventanas de 1 segundo, que a 256 Hz equivalen a 256 muestras por canal, con un solapamiento del 50 % (paso de 0,5 s). La elección se justifica por un triple compromiso:
+* Localización temporal del evento. Una ventana corta acota la incertidumbre sobre el instante de inicio de la crisis, mejorando la sensibilidad a transitorios breves (espigas, ondas agudas) y reduciendo la latencia de detección. Ventanas largas (p. ej. 5–10 s) diluyen el evento dentro de actividad de fondo y degradan la resolución del instante de onset.
+* Cuasi-estacionariedad. El EEG es no estacionario a gran escala, pero dentro de ~1 s puede considerarse aproximadamente estacionario, condición necesaria para que las características espectrales y wavelet sean estimadores estables y representativos.
+* Viabilidad computacional y suficiencia muestral. 256 muestras son suficientes para una descomposición DWT de hasta 5 niveles (que requiere como mínimo 25 = 32 muestras) y para estimar varianza y entropía con baja varianza del estimador, manteniendo a la vez una carga de cómputo compatible con un escenario clínico de monitoreo continuo.
+El solapamiento del 50 % cumple dos objetivos: evita que una crisis quede partida entre dos ventanas (un evento siempre queda íntegramente contenido en al menos una ventana) y aumenta la densidad temporal de decisiones, lo que beneficia luego a la lógica de histéresis.
+2.3  Filtrado: pasa-banda Butterworth 0,5–45 Hz + Notch 60 Hz
+El acondicionamiento aplica, en cascada, un filtro pasa-banda Butterworth (orden 4–5, fase cero mediante filtrado bidireccional scipy.signal.filtfilt) con banda de paso de 0,5 a 45 Hz, seguido de un filtro Notch (rechaza-banda) a 60 Hz. La justificación es a la vez biológica y matemática:
+Componente eliminada
+	Banda
+	Origen
+	Filtro responsable
+	Deriva de línea base
+	< 0,5 Hz
+	Sudoración, deriva de electrodos, potenciales DC, respiración
+	Corte inferior del pasa-banda
+	Ruido muscular (EMG)
+	> 30–45 Hz
+	Actividad electromiográfica de cuero cabelludo y cara
+	Corte superior del pasa-banda
+	Interferencia de red
+	60 Hz
+	Acoplamiento de la red eléctrica (CHB-MIT, EE. UU.)
+	Filtro Notch
+	
+
+Por qué Butterworth. El filtro de Butterworth posee una respuesta en magnitud máximamente plana en la banda de paso (sin rizado), lo que preserva las amplitudes relativas de los ritmos cerebrales sin introducir distorsiones que falsearían las características de energía. Su respuesta cumple
+|H(jω)|² = 1 / [ 1 + (ω / ω_c)^(2n) ]
+donde n es el orden y ωc la frecuencia de corte. Un orden 4–5 ofrece una transición suficientemente abrupta sin generar oscilaciones (ringing) que contaminarían la morfología de las espigas. El filtrado de fase cero (aplicar el filtro hacia adelante y hacia atrás) es indispensable: elimina la distorsión de fase, de modo que el instante de las espigas y la forma de onda —información diagnóstica— no se desplazan ni deforman.
+Por qué la banda 0,5–45 Hz. Concentra la energía clínicamente relevante del EEG ictal. Las crisis se manifiestan como actividad rítmica y transitoria por debajo de ~30 Hz (delta, theta, alfa y beta), de modo que el contenido por encima de 45 Hz es mayoritariamente EMG y ruido, no señal. El corte inferior en 0,5 Hz remueve las derivas lentas que, de no eliminarse, dominarían la energía de las sub-bandas de aproximación y sesgarían las características.
+Por qué Notch a 60 Hz. La red eléctrica induce una componente sinusoidal estrecha en 60 Hz (frecuencia de línea en EE. UU., donde se registró CHB-MIT). El filtro rechaza-banda la suprime sin afectar las bandas vecinas. Nota de ingeniería: la frecuencia de notch debe coincidir con la red de adquisición; para datos registrados en países con red de 50 Hz (como Argentina) correspondería 50 Hz. Dado que CHB-MIT proviene de EE. UU., aquí es 60 Hz. Tras el pasa-banda a 45 Hz, el notch actúa como salvaguarda complementaria.
+________________
+
+
+3. Panel Teórico: Representación y Extracción de Características
+3.1  Por qué DWT y no Transformada de Fourier
+Una crisis epiléptica es un fenómeno no estacionario y transitorio: su contenido frecuencial evoluciona en el tiempo (espigas abruptas, ondas agudas, actividad rítmica que cambia de frecuencia). La Transformada de Fourier (TF) descompone la señal en senoidales de duración infinita y, por tanto, pierde toda localización temporal: indica qué frecuencias están presentes, pero no cuándo. La Transformada de Fourier de Tiempo Corto (STFT) introduce localización mediante una ventana fija, pero queda atada al principio de incertidumbre de Heisenberg–Gabor, que impone un compromiso rígido: una ventana fija da la misma resolución tiempo-frecuencia para todas las frecuencias.
+La Transformada Wavelet Discreta (DWT) resuelve esto con una resolución multiescala adaptativa: emplea bases dilatadas y trasladadas de una wavelet madre ψ,
+ψ_{j,k}(t) = 2^{−j/2} · ψ( 2^{−j} t − k )
+de modo que en altas frecuencias usa bases cortas (excelente resolución temporal, ideal para localizar espigas) y en bajas frecuencias usa bases largas (mejor resolución frecuencial, ideal para caracterizar ritmos lentos delta/theta). En la práctica, la DWT se implementa con un banco de filtros en cascada (algoritmo de Mallat): en cada nivel la señal se separa en coeficientes de aproximación (paso-bajo, A) y detalle (paso-alto, D), submuestreando por 2. Es justamente la representación que el método fundacional de Shoeb y Guttag empleó con éxito sobre CHB-MIT.
+3.2  Elección de la familia Daubechies-4 (db4)
+Se adopta la wavelet Daubechies-4 (db4), de uso dominante en detección de crisis. Sus propiedades la hacen idónea:
+* Soporte compacto y ortogonalidad. db4 tiene un filtro de 8 coeficientes y soporte finito, lo que garantiza buena localización temporal y una descomposición ortogonal que preserva la energía (teorema de Parseval), condición clave para que la energía por sub-banda sea una característica con sentido físico.
+* Cuatro momentos de desvanecimiento. db4 anula polinomios hasta grado 3, lo que suprime las tendencias suaves y concentra la representación en las irregularidades —exactamente las discontinuidades y transitorios bruscos que caracterizan la actividad ictal.
+* Afinidad morfológica. La forma asimétrica y abrupta de db4 se asemeja a la de las espigas y ondas agudas epileptiformes, comportándose como un detector adaptado (matched-filter) y maximizando la respuesta ante esos eventos, frente a wavelets más suaves (p. ej. la simétrica de Haar es demasiado tosca y las Symlets más simétricas responden peor a la asimetría de la espiga).
+3.3  Niveles de descomposición (4 o 5) y mapeo a bandas EEG
+Con frecuencia de muestreo de 256 Hz (Nyquist = 128 Hz), cada nivel divide la banda por la mitad. Una descomposición de 5 niveles produce sub-bandas que se alinean casi exactamente con los ritmos fisiológicos del EEG:
+Sub-banda
+	Rango (Hz)
+	Ritmo EEG asociado
+	Relevancia ictal
+	D1
+	64 – 128
+	—  (ruido / fuera de banda)
+	Eliminada por el pasa-banda
+	D2
+	32 – 64
+	Gamma (parcial)
+	Atenuada (corte en 45 Hz)
+	D3
+	16 – 32
+	Beta
+	Actividad rápida ictal
+	D4
+	8 – 16
+	Alfa / husos
+	Ritmos intermedios
+	D5
+	4 – 8
+	Theta
+	Frecuente en crisis
+	A5
+	0 – 4
+	Delta
+	Alta energía ictal
+	
+
+La elección de 5 niveles se prefiere porque separa delta (A5, 0–4 Hz) de theta (D5, 4–8 Hz), dos bandas con gran peso en la actividad de crisis; una descomposición de 4 niveles (que las fusiona en A4, 0–8 Hz) es una alternativa más liviana y aceptable si se prioriza el costo computacional. Las sub-bandas D1–D2, fuera de la banda de interés tras el filtrado, pueden descartarse para reducir dimensionalidad.
+3.4  Rasgos a extraer por sub-banda
+De cada sub-banda relevante (típicamente D3, D4, D5 y A5) se computan tres descriptores complementarios, que capturan magnitud, dispersión y complejidad de la señal:
+* Energía relativa. Energía de la sub-banda normalizada por la energía total, Ej = (Σ |cj,k|²) / (Σm Σ |cm,k|²). Indica cómo se redistribuye la energía entre bandas: durante una crisis suele migrar hacia delta/theta, señal discriminante robusta a cambios de amplitud global.
+* Varianza. Varianza de los coeficientes de cada sub-banda; cuantifica la potencia de la actividad en esa escala y es sensible al aumento de amplitud característico del onset ictal.
+* Entropía. Entropía (de Shannon sobre la distribución de energía, o entropía wavelet) que mide el grado de orden/irregularidad de la señal. La actividad ictal rítmica reduce la entropía respecto del EEG de fondo desorganizado, aportando una característica de naturaleza no lineal.
+El vector de características resultante (3 descriptores × sub-bandas seleccionadas × canales, o agregados por canal) alimenta las etapas siguientes. Se recomienda estandarizar (z-score) las características antes de clasificar, en especial si se usa SVM.
+________________
+
+
+4. Decisión, Balanceo y Validación
+4.1  Balanceo de clases (SMOTE / submuestreo)
+Las crisis representan una fracción ínfima del registro —del orden del 0,3 % del tiempo total. Este desbalance extremo (≈ 1 ventana de crisis por cada ~300 de no-crisis) hace que un clasificador que minimice el error global aprenda la solución trivial “nunca hay crisis”: obtendría ~99,7 % de exactitud y sensibilidad nula, es decir, clínicamente inútil. El balanceo es por tanto obligatorio.
+* SMOTE (Synthetic Minority Over-sampling Technique). Genera ejemplos sintéticos de la clase minoritaria interpolando entre vecinos cercanos en el espacio de características, en lugar de duplicar muestras. Enriquece la frontera de decisión sin el sobreajuste del sobremuestreo por copia.
+* Submuestreo (undersampling). Reduce aleatoriamente la clase mayoritaria. Más simple y barato, pero descarta información; útil como línea base o combinado con SMOTE.
+⚠  Regla crítica anti-fuga de datos (data leakage)
+El balanceo —y toda selección de características o ajuste de hiperparámetros— debe aplicarse únicamente sobre los datos de entrenamiento de cada fold, nunca sobre el conjunto de prueba. Aplicar SMOTE antes de partir los datos infla artificialmente las métricas y es uno de los errores metodológicos más reportados en la literatura de CHB-MIT. La validación cruzada debe ser anidada para respetar esta separación.
+	4.2  Clasificador: Random Forest (principal) y SVM (comparación)
+Random Forest se adopta como clasificador principal. Es un ensamble de árboles de decisión entrenados sobre remuestreos bootstrap con selección aleatoria de características (bagging), lo que reduce la varianza y el sobreajuste. Sus ventajas para esta tarea son decisivas: maneja relaciones no lineales sin necesidad de escalar las características, es robusto a valores atípicos, ofrece importancia de características (interpretabilidad valiosa para el informe) y produce un score de probabilidad p(crisis) continuo, imprescindible para la lógica de histéresis posterior. Ofrece, además, un excelente balance entre sensibilidad y especificidad.
+SVM (Support Vector Machine) se incluye como modelo de comparación. Con kernel RBF captura fronteras no lineales y destaca por su robustez en la generalización gracias al principio de margen máximo, especialmente eficaz cuando la dimensionalidad es alta respecto al número de muestras. Requiere estandarizar las características y ajustar con cuidado los hiperparámetros C y γ, además de ponderar las clases (class_weight='balanced') para el desbalance. El contraste RF vs. SVM constituye un eje experimental honesto de ablación.
+4.3  Histéresis temporal (post-procesamiento)
+Las predicciones por ventana son ruidosas: ráfagas de actividad benigna (artefactos, somnolencia) pueden producir falsos positivos aislados. Si cada ventana positiva disparara una alarma, la tasa de falsas alarmas sería inaceptable para uso clínico. La histéresis temporal introduce memoria en la decisión: se declara crisis solo cuando se acumulan N ventanas positivas consecutivas (o N de M dentro de una ventana deslizante).
+Conceptualmente equivale a un disparador de Schmitt: se emplea un doble umbral —entrar al estado “crisis” exige una persistencia alta de positivos, y salir requiere una persistencia sostenida de negativos— lo que evita el parpadeo de la decisión en torno a un único umbral. El parámetro N se calibra para maximizar la supresión de falsas alarmas con un costo mínimo de latencia: cada ventana adicional exigida agrega a lo sumo ~0,5 s de retardo (por el paso de ventaneo), un precio clínicamente asumible a cambio de una reducción sustancial de FA/h.
+4.4  Métricas clínicas de evaluación
+Por qué la Exactitud (Accuracy) no alcanza. Bajo un desbalance de 99,7 % / 0,3 %, la exactitud está dominada por la clase mayoritaria: el clasificador trivial “sin crisis” logra ~99,7 % sin detectar una sola crisis. Es la llamada paradoja de la exactitud. Por eso se reporta un conjunto de métricas orientadas a la clase de interés y al uso clínico:
+Métrica
+	Definición
+	Por qué importa aquí
+	Sensibilidad (Recall, TPR)
+	VP / (VP + FN)
+	Métrica crítica: un falso negativo es una crisis no detectada
+	Especificidad (TNR)
+	VN / (VN + FP)
+	Mide el rechazo correcto del EEG normal
+	Tasa de Falsas Alarmas (FPR)
+	FP / (FP + VN) = 1 − Especificidad
+	Costo de alarmas espurias; se traduce en FA/h
+	AUC (ROC)
+	Área bajo la curva TPR vs. FPR
+	Independiente del umbral y robusta al desbalance
+	F1 / AUC-PR
+	Media armónica de precisión y recall
+	Más informativa que ROC bajo desbalance extremo
+	
+
+Métricas de evento y validación. Además de las métricas por ventana, se reportan dos indicadores propios del dominio: la tasa de falsas alarmas por hora (FA/h) y la latencia de detección (segundos entre el inicio real anotado y la detección). El AUC se prioriza como métrica resumen por ser independiente del umbral de decisión. El protocolo de validación será cruzado y sin fuga de datos; se contrastará el escenario patient-specific (entrenar y evaluar por paciente, baseline histórico de Shoeb) frente al más exigente leave-one-patient-out, que mide la generalización entre sujetos y es el verdadero indicador de aplicabilidad clínica.
+▶  Síntesis del criterio de diseño
+Cada bloque está elegido para ser justificable y medible: filtros que preservan la morfología (Butterworth fase cero), una representación adaptada a transitorios no estacionarios (DWT db4), un balanceo honesto (SMOTE solo en entrenamiento), un clasificador interpretable y probabilístico (Random Forest), una supresión de falsas alarmas con base en la persistencia temporal (histéresis) y una evaluación con métricas que reflejan el costo clínico real (sensibilidad, AUC, FA/h). El resultado es un prototipo viable para estudiantes y defendible como simulación de I+D.
+	Resumen:
+¿De qué trata el proyecto?
+El objetivo es crear un sistema automático que detecte convulsiones epilépticas mirando las señales del cerebro (EEG). Usan una base de datos real de 23 pacientes del Hospital de Niños de Boston, y todo se programa en Python.
+________________
+
+
+¿Cómo funciona el sistema? (los pasos)
+1. 🧹 Limpieza de la señal
+La señal del cerebro viene con "ruido" (interferencias eléctricas, movimientos musculares, etc.). Entonces primero la limpian:
+* Se queda solo con lo que está entre 0.5 y 45 Hz, que es la parte útil del cerebro
+* Se elimina el ruido de la corriente eléctrica (60 Hz en EE.UU.)
+* Usan un tipo de filtro llamado Butterworth porque no distorsiona la señal
+2. ✂️ Cortar en pedazos
+La señal continua se divide en trozos de 1 segundo (con mitad de superposición entre uno y el siguiente). Esto se hace así porque:
+* 1 segundo es suficiente para detectar una convulsión sin perder detalle
+* Si los trozos se solapan a la mitad, se aseguran de no perder ninguna convulsión "partida" entre dos trozos
+3. 🔍 Analizar cada trozo con Wavelets (DWT)
+Acá viene la parte más técnica. En vez de usar la Transformada de Fourier (que solo dice qué frecuencias hay pero no cuándo), usan la Transformada Wavelet Discreta (DWT), que dice qué frecuencias hay Y en qué momento.
+Esto es importante porque las convulsiones son eventos que cambian rápidamente en el tiempo.
+Usan una "forma de onda" llamada Daubechies-4 (db4) porque su forma se parece a cómo se ve una convulsión en el EEG (puntas y ondas bruscas).
+La señal se descompone en capas de frecuencia (como separar una mezcla musical en bajos, medios y agudos), y cada capa corresponde a un ritmo cerebral distinto.
+4. 📊 Extraer características
+De cada capa de frecuencia se sacan 3 números que describen la señal:
+* Energía: cuánta actividad hay en esa banda (durante una convulsión, la energía se concentra en frecuencias bajas)
+* Varianza: qué tanto varía la señal
+* Entropía: qué tan "caótica" o "ordenada" es (las convulsiones son más ordenadas/rítmicas que el EEG normal)
+5. ⚖️ Balancear los datos
+Problema: las convulsiones solo ocurren el 0,3% del tiempo. Si le enseñás al sistema con esa proporción, aprende a decir "nunca hay convulsión" y tiene 99,7% de acierto... pero no detecta ninguna convulsión real.
+Solución: se generan ejemplos artificiales de convulsiones (técnica SMOTE) para equilibrar los datos de entrenamiento.
+6. 🤖 Clasificador (la IA que decide)
+El sistema usa principalmente un Random Forest (un conjunto de muchos árboles de decisión) para decir "esto es convulsión" o "no lo es". También prueban con SVM para comparar cuál funciona mejor.
+7. 🔔 Evitar falsas alarmas (histéresis)
+Una sola ventana positiva no alcanza para decir "hay convulsión". Se necesita que varias ventanas seguidas sean positivas. Esto evita que un artefacto de un segundo dispare una alarma innecesariamente.
+________________
+
+
+¿Cómo saben si funciona bien?
+No usan el "porcentaje de aciertos" normal porque ese número engaña cuando los datos están tan desbalanceados. Usan:
+* Sensibilidad: ¿qué porcentaje de convulsiones reales detectó? (lo más importante)
+* Falsas alarmas por hora: ¿cuántas veces se equivocó diciendo que había convulsión?
+* AUC: una medida general de qué tan bien separa convulsión de no-convulsión
+________________
+
+
+La idea clave en una frase
+Limpian la señal del cerebro, la analizan en capas de frecuencia, extraen números que describen cada momento, entrenan una IA para reconocer convulsiones, y usan un sistema de persistencia temporal para no dar falsas alarmas.
+
+
+Referencias
+Fuentes que sustentan las decisiones técnicas del plan. La autoría completa de algunas entradas debe confirmarse en el DOI indicado.
+1. Goldberger, A. L., Amaral, L. A. N., Glass, L., Hausdorff, J. M., Ivanov, P. Ch., Mark, R. G., … Stanley, H. E. (2000). PhysioBank, PhysioToolkit, and PhysioNet: Components of a new research resource for complex physiologic signals. Circulation, 101(23), e215–e220. [Base CHB-MIT: physionet.org/content/chbmit/1.0.0/]
+2. Shoeb, A., Edwards, H., Connolly, J., Bourgeois, B., Treves, S. T., & Guttag, J. (2004). Patient-specific seizure onset detection. Epilepsy & Behavior, 5(4), 483–498. DOI: 10.1016/j.yebeh.2004.05.005
+3. Shoeb, A. H., & Guttag, J. V. (2010). Application of machine learning to epileptic seizure detection. Proceedings of the 27th International Conference on Machine Learning (ICML), 975–982.
+4. Andrzejak, R. G., Lehnertz, K., Mormann, F., Rieke, C., David, P., & Elger, C. E. (2001). Indications of nonlinear deterministic and finite-dimensional structures in time series of brain electrical activity. Physical Review E, 64, 061907. DOI: 10.1103/PhysRevE.64.061907
+5. Shah, V., von Weltin, E., Lopez, S., McHugh, J. R., Veloso, L., Golmohammadi, M., Obeid, I., & Picone, J. (2018). The Temple University Hospital Seizure Detection Corpus. Frontiers in Neuroinformatics, 12, 83. DOI: 10.3389/fninf.2018.00083
+6. (Autoría a confirmar en el DOI) (2026). Seizure detection using EEG on the CHB-MIT dataset via multi-domain feature engineering and classical machine learning. Discover Applied Sciences. DOI: 10.1007/s42452-026-08306-9
+7. (Autoría a confirmar en el DOI) (2024). Epileptic seizure detection using CHB-MIT dataset: The overlooked perspectives. Royal Society Open Science, 11(5), 230601. DOI: 10.1098/rsos.230601
+8. (Autoría a confirmar en el DOI) (2016). A novel robust diagnostic model to detect seizures in electroencephalography (DTCWT). Expert Systems with Applications. S0957417416300732
+9. Sun, [et al.] (2024). Automatic seizure detection using multi-input deep feature learning networks for EEG signals. Journal of Sensors, 2024, 8835396. DOI: 10.1155/2024/8835396
+10. Khalid, M., Raza, A., Akhtar, A., Rustam, F., Brito Ballester, J., Rodriguez, C. L., de la Torre Díez, I., & Ashraf, I. (2024). Diagnosing epileptic seizures using combined features from independent components and prediction probability from EEG data. Digital Health, 10. DOI: 10.1177/20552076241277185
+Página  de

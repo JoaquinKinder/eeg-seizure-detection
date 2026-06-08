@@ -1,0 +1,28 @@
+/* Shared chart card styles */
+.section { margin-bottom: 44px; }
+
+.sectionTitle {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px; font-weight: 600; color: var(--text-primary);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 10px;
+}
+.sectionTitle::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.sectionDesc {
+  font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 18px; max-width: 700px; line-height: 1.7;
+}
+
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 16px;
+}
+
+.cardTitle { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.cardSub   { font-size: 12px; color: var(--text-secondary); margin-bottom: 20px; }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px; }
+
+@media (max-width: 1100px) { .grid2 { grid-template-columns: 1fr; } }

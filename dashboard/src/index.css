@@ -1,0 +1,52 @@
+/* =========================================
+   GLOBAL CSS — EEG Dashboard Design System
+   ========================================= */
+
+:root {
+  --bg-base:        #05070f;
+  --bg-surface:     #0d1117;
+  --bg-card:        rgba(255,255,255,0.04);
+  --bg-card-hover:  rgba(255,255,255,0.07);
+  --border:         rgba(255,255,255,0.08);
+  --border-accent:  rgba(99,179,237,0.35);
+
+  --text-primary:   #e8edf5;
+  --text-secondary: #8b9ab3;
+  --text-muted:     #4a5568;
+
+  --accent-blue:    #63b3ed;
+  --accent-purple:  #9f7aea;
+  --accent-green:   #68d391;
+  --accent-amber:   #f6ad55;
+  --accent-red:     #fc8181;
+  --accent-teal:    #4fd1c5;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-glow-blue: 0 0 24px rgba(99,179,237,0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-surface); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ── Selection ── */
+::selection { background: rgba(99,179,237,0.25); color: var(--text-primary); }
