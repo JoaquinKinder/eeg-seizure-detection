@@ -1,32 +1,31 @@
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
-import DashboardPage from './pages/DashboardPage'
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import PredictPage from './pages/PredictPage'
+import ProcessingPage from './pages/ProcessingPage'
 import styles from './App.module.css'
 
 export default function App() {
   return (
     <BrowserRouter>
       <div className={styles.layout}>
-        {/* Barra de Navegación */}
-        <nav className={styles.sidebar}>
+        {/* Navbar Superior */}
+        <nav className={styles.navbar}>
           <div className={styles.brand}>
-            <div className={styles.brandIcon}>🧠</div>
-            <div className={styles.brandText}>NeuroDash</div>
+            <div className={styles.brandIcon}>⚕️</div>
+            <div className={styles.brandText}>EEG Analyzer</div>
           </div>
           
           <div className={styles.navLinks}>
             <NavLink 
-              to="/" 
+              to="/processing" 
               className={({ isActive }) => `${styles.navLink} ${isActive ? styles.activeLink : ''}`}
-              end
             >
-              📊 Reportes Históricos
+              Procesamiento de Señal
             </NavLink>
             <NavLink 
               to="/predict" 
               className={({ isActive }) => `${styles.navLink} ${isActive ? styles.activeLink : ''}`}
             >
-              🔍 Inferencia en Vivo
+              Predicción de Crisis
             </NavLink>
           </div>
         </nav>
@@ -34,7 +33,8 @@ export default function App() {
         {/* Contenido Principal */}
         <main className={styles.mainContent}>
           <Routes>
-            <Route path="/" element={<DashboardPage />} />
+            <Route path="/" element={<Navigate to="/processing" replace />} />
+            <Route path="/processing" element={<ProcessingPage />} />
             <Route path="/predict" element={<PredictPage />} />
           </Routes>
         </main>

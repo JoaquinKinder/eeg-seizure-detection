@@ -3,30 +3,32 @@
    ========================================= */
 
 :root {
-  --bg-base:        #05070f;
-  --bg-surface:     #0d1117;
-  --bg-card:        rgba(255,255,255,0.04);
-  --bg-card-hover:  rgba(255,255,255,0.07);
-  --border:         rgba(255,255,255,0.08);
-  --border-accent:  rgba(99,179,237,0.35);
+  /* Geclisa-style Palette */
+  --bg-base:        #f0f4f3; /* Off-white / light cream */
+  --bg-surface:     #ffffff;
+  --bg-card:        #ffffff;
+  --bg-card-hover:  #f8fafc;
+  --border:         #d1d5db;
+  --border-accent:  rgba(45, 127, 127, 0.35);
 
-  --text-primary:   #e8edf5;
-  --text-secondary: #8b9ab3;
-  --text-muted:     #4a5568;
+  --text-primary:   #184e4d; /* Very Dark Teal for headings/text */
+  --text-secondary: #4b6b6b; /* Lighter teal/gray for secondary text */
+  --text-muted:     #9ca3af;
 
-  --accent-blue:    #63b3ed;
-  --accent-purple:  #9f7aea;
-  --accent-green:   #68d391;
-  --accent-amber:   #f6ad55;
-  --accent-red:     #fc8181;
-  --accent-teal:    #4fd1c5;
+  /* Accents */
+  --accent-main:    #2d7f7f; /* Dark Teal (Navbar) */
+  --accent-light:   #46c0b4; /* Light Teal (Swoosh) */
+  --accent-red:     #d63b46; /* Crimson Red (Buttons/Badges) */
+  
+  --accent-blue:    #46c0b4; /* Kept for compatibility, mapped to light teal */
+  --accent-green:   #2d7f7f;
 
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-lg: 24px; /* More rounded for modern feel */
 
-  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
-  --shadow-glow-blue: 0 0 24px rgba(99,179,237,0.12);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 20px rgba(70, 192, 180, 0.2);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
