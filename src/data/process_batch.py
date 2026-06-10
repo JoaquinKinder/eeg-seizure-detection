@@ -2,7 +2,7 @@ import os
 import numpy as np
 import mne
 from src.data.load_data import parse_summary_file, generate_labels_for_file
-from src.preprocessing.filters import notch_filter, butter_bandpass_filter
+from src.preprocessing.filters import butter_bandpass_filter
 from src.preprocessing.windowing import window_labels_by_vote
 from src.features.extraction import extract_wavelet_features_from_window
 
@@ -53,8 +53,8 @@ def process_patient_batch(data_dir, patient_id, window_size=256, step=128):
             # 3. Filtrado digital multicanal
             data_filtrada = np.zeros_like(data_cruda)
             for ch in range(23):
-                sig_notch = notch_filter(data_cruda[ch, :], notch_freq=60.0, fs=fs)
-                data_filtrada[ch, :] = butter_bandpass_filter(sig_notch, fs=fs, lowcut=0.5, highcut=30.0)
+                # Filtro Butterworth pasabanda 0.5-40 Hz (sin Notch - redundante con highcut=40Hz)
+                data_filtrada[ch, :] = butter_bandpass_filter(data_cruda[ch, :], fs=fs, lowcut=0.5, highcut=40.0)
                 
             # 4. Etiquetas muestra a muestra y colapso por votación a nivel ventana
             tiempos_crisis = diccionario_crisis[filename]

@@ -5,7 +5,7 @@ import mne
 import joblib
 from sklearn.preprocessing import StandardScaler
 
-from src.preprocessing.filters import notch_filter, butter_bandpass_filter
+from src.preprocessing.filters import butter_bandpass_filter
 from src.features.extraction import extract_wavelet_features_from_window
 from src.models.hysteresis import apply_hysteresis_logic
 
@@ -47,8 +47,8 @@ def process_and_predict_edf(edf_path, window_size=256, step=128):
     print(f"Frecuencia de muestreo: {fs}Hz. Aplicando filtrado...")
     data_filtrada = np.zeros_like(data_cruda)
     for ch in range(23):
-        sig_notch = notch_filter(data_cruda[ch, :], notch_freq=60.0, fs=fs)
-        data_filtrada[ch, :] = butter_bandpass_filter(sig_notch, fs=fs, lowcut=0.5, highcut=30.0)
+        # Filtro Butterworth pasabanda 0.5-40 Hz (sin Notch - redundante con highcut=40Hz)
+        data_filtrada[ch, :] = butter_bandpass_filter(data_cruda[ch, :], fs=fs, lowcut=0.5, highcut=40.0)
         
     total_samples = data_filtrada.shape[1]
     num_windows = (total_samples - window_size_samples) // step_samples + 1
