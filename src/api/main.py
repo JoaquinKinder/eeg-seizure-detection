@@ -10,6 +10,10 @@ import mne
 import uuid
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), ".tmp")
+
+# Limpiar archivos temporales de sesiones anteriores al iniciar
+if os.path.exists(UPLOAD_DIR):
+    shutil.rmtree(UPLOAD_DIR, ignore_errors=True)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))

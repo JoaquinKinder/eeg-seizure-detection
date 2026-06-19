@@ -3,3 +3,12 @@ models_saved/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+
+# Temporal files
+.tmp/
+src/api/.tmp/
+
+# Environments and dependencies
+.venv/
+venv/
+dashboard/node_modules/
