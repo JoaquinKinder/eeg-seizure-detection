@@ -7,6 +7,10 @@ import sys
 import shutil
 import numpy as np
 import mne
+import uuid
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), ".tmp")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
@@ -66,8 +70,9 @@ async def analyze_edf(file: UploadFile = File(...)):
 
     temp_path = None
     try:
-        fd, temp_path = tempfile.mkstemp(suffix=".edf")
-        with os.fdopen(fd, "wb") as f_out:
+        file_id = str(uuid.uuid4())
+        temp_path = os.path.join(UPLOAD_DIR, f"{file_id}.edf")
+        with open(temp_path, "wb") as f_out:
             shutil.copyfileobj(file.file, f_out)
 
         print(f"[/analyze] Cargando EDF: {temp_path}")
@@ -123,18 +128,31 @@ async def analyze_edf(file: UploadFile = File(...)):
                     if sb in dwt_result["energy"][ch_key]:
                         dwt_result["energy"][ch_key][sb] = dwt_result["energy"][ch_key][sb][::step]
                 # LPC
+                # LPC
                 lpc_result["coefficients"][ch_key] = lpc_result["coefficients"][ch_key][::step]
 
-        os.remove(temp_path)
+        # ── DOWNSAMPLING SEÑAL ORIGINAL ──
+        total_samples = data_filtrada.shape[1]
+        signal_step = max(1, total_samples // MAX_POINTS)
+        signal_payload = {
+            "times": (np.arange(0, total_samples, signal_step) / fs).tolist(),
+            "amplitudes": {}
+        }
+        for i in range(len(ch_names)):
+            # Escalar a microvoltios (MNE suele dar los datos en Volts)
+            signal_payload["amplitudes"][f"ch{i}"] = (data_filtrada[i, ::signal_step] * 1e6).tolist()
+
         print("[/analyze] Analisis completado y serializando JSON...")
 
         return JSONResponse(content={
+            "file_id": file_id,
             "channel_names": ch_names,
             "fs": fs,
             "duration_seconds": data_cruda.shape[1] / fs,
             "stft": stft_result,
             "dwt": dwt_result,
             "lpc": lpc_result,
+            "signal": signal_payload,
         })
 
     except Exception as e:
@@ -145,6 +163,79 @@ async def analyze_edf(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/segment/{file_id}")
+async def get_segment(file_id: str, start: float, end: float):
+    """
+    Devuelve los datos procesados en ALTA RESOLUCION (sin downsampling)
+    para un segmento especifico de tiempo.
+    """
+    file_path = os.path.join(UPLOAD_DIR, f"{file_id}.edf")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found or expired.")
+
+    try:
+        print(f"[/segment] Cargando segmento {start}s - {end}s del archivo {file_id}")
+        raw = mne.io.read_raw_edf(file_path, preload=False, verbose=False)
+        fs = int(raw.info['sfreq'])
+        
+        # Validar limites
+        tmax_file = raw.times[-1]
+        start = max(0.0, min(start, tmax_file))
+        end = max(0.0, min(end, tmax_file))
+        if start >= end:
+            raise HTTPException(status_code=400, detail="Invalid time range")
+
+        data_cruda, times = raw.get_data(picks=range(23), tmin=start, tmax=end, return_times=True)
+        ch_names = [raw.ch_names[i] for i in range(23)]
+
+        print(f"[/segment] Filtrando segmento de shape {data_cruda.shape}...")
+        data_filtrada = np.zeros_like(data_cruda)
+        for ch in range(23):
+            data_filtrada[ch, :] = butter_bandpass_filter(data_cruda[ch, :], fs=fs, lowcut=0.5, highcut=40.0)
+
+        window_samples = int(1.0 * fs)
+        step_samples   = int(0.5 * fs)
+
+        print("[/segment] Calculando STFT...")
+        stft_result = compute_stft_per_channel(data_filtrada, fs, window_samples, step_samples)
+        
+        print("[/segment] Calculando DWT energias...")
+        dwt_result = compute_dwt_energy_per_channel(data_filtrada, fs, window_samples, step_samples)
+        
+        print("[/segment] Calculando LPC coeficientes...")
+        lpc_result = compute_lpc_per_channel(data_filtrada, fs, window_samples, step_samples, order=12)
+
+        # Ajustar los tiempos devueltos (los compute_* asumen que la senal empieza en t=0)
+        # Sumamos el 'start' a los tiempos relativos de la ventana
+        stft_result["times"] = [t + start for t in stft_result["times"]]
+        dwt_result["times"] = [t + start for t in dwt_result["times"]]
+        lpc_result["times"] = [t + start for t in lpc_result["times"]]
+
+        # Senal en crudo de alta resolucion
+        signal_payload = {
+            "times": times.tolist(),
+            "amplitudes": {}
+        }
+        for i in range(len(ch_names)):
+            signal_payload["amplitudes"][f"ch{i}"] = (data_filtrada[i, :] * 1e6).tolist()
+
+        return JSONResponse(content={
+            "file_id": file_id,
+            "channel_names": ch_names,
+            "fs": fs,
+            "duration_seconds": end - start,
+            "stft": stft_result,
+            "dwt": dwt_result,
+            "lpc": lpc_result,
+            "signal": signal_payload,
+        })
+
+    except Exception as e:
+        import traceback
+        print(f"[/segment] Error: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("src.api.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("src.api.main:app", host="127.0.0.1", port=8000, reload=True)

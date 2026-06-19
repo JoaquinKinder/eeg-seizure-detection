@@ -16,7 +16,7 @@ IF NOT EXIST ".venv" (
 
 echo [1/2] Levantando motor de Inferencia (Backend Python)...
 :: Abre una nueva ventana negra y ejecuta Uvicorn usando el entorno virtual
-start "EEG Backend API" cmd /k "call .venv\Scripts\activate && python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000"
+start "EEG Backend API" cmd /k "call .venv\Scripts\activate && python -m uvicorn src.api.main:app --port 8000"
 
 echo [2/2] Levantando Interfaz Web (Frontend React)...
 :: Abre otra ventana para Vite

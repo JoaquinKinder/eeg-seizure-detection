@@ -40,12 +40,12 @@ function ChannelSelector({ channels, value, onChange }) {
 }
 
 // ─── STFT Panel ──────────────────────────────────────────────────────────────
-function StftPanel({ data, channelNames }) {
+function StftPanel({ data, signalData, channelNames, seizureMarker, onRelayout }) {
   const [selCh, setSelCh] = useState('ch0')
+  const [showSignal, setShowSignal] = useState(false)
 
   const magnitudes = data.magnitudes[selCh] || []
-  // magnitudes shape: [freq_bins][time_frames] → Plotly needs z[time][freq] transposed
-  const zData = magnitudes  // already [freq x time], Plotly heatmap uses z[y][x]
+  const zData = magnitudes
 
   return (
     <section className={styles.panel}>
@@ -53,29 +53,78 @@ function StftPanel({ data, channelNames }) {
       <p className={styles.panelDesc}>
         Transformada de Fourier de Tiempo Corto · Ventana Hanning 1s · Solapamiento 50%
       </p>
-      <ChannelSelector channels={channelNames} value={selCh} onChange={setSelCh} />
+      
+      <div className={styles.controlsRow}>
+        <div style={{ flex: 1 }}>
+          <ChannelSelector channels={channelNames} value={selCh} onChange={setSelCh} />
+        </div>
+        <div className={styles.toggleWrap}>
+          <span className={styles.toggleInactive}>Ver Señal Original</span>
+          <label className={styles.switch}>
+            <input type="checkbox" checked={showSignal} onChange={e => setShowSignal(e.target.checked)} />
+            <span className={styles.slider} />
+          </label>
+        </div>
+      </div>
+
       <div className={styles.plotWrap}>
         <Plot
-          data={[{
-            type: 'heatmap',
-            z: zData,
-            x: data.times,
-            y: data.freqs,
-            colorscale: 'Viridis',
-            colorbar: { title: 'Magnitud' },
-          }]}
+          data={[
+            {
+              type: 'heatmap',
+              z: zData,
+              x: data.times,
+              y: data.freqs,
+              colorscale: 'Viridis',
+              colorbar: { title: 'Magnitud', x: 1.15 },
+            },
+            ...(showSignal && signalData ? [{
+              type: 'scatter',
+              mode: 'lines',
+              x: signalData.times,
+              y: signalData.amplitudes[selCh],
+              yaxis: 'y2',
+              line: { color: '#2d7f7f', width: 1.5 },
+              name: 'Señal original'
+            }] : [])
+          ]}
           layout={{
             paper_bgcolor: 'transparent',
             plot_bgcolor: '#f8fafc',
             font: { color: '#1e293b', family: 'Inter' },
             xaxis: { title: 'Tiempo (s)', gridcolor: 'rgba(0,0,0,0.05)' },
-            yaxis: { title: 'Frecuencia (Hz)', gridcolor: 'rgba(0,0,0,0.05)' },
-            margin: { t: 20, l: 60, r: 20, b: 50 },
+            yaxis: { 
+              title: 'Frecuencia (Hz)', 
+              gridcolor: 'rgba(0,0,0,0.05)',
+              domain: showSignal ? [0, 0.7] : [0, 1]
+            },
+            ...(showSignal ? {
+              yaxis2: { 
+                title: 'Amplitud (µV)', 
+                domain: [0.75, 1],
+                showgrid: true,
+                gridcolor: 'rgba(0,0,0,0.05)',
+                zeroline: true
+              }
+            } : {}),
+            margin: { t: 30, l: 60, r: 20, b: 50 },
             autosize: true,
+            shapes: seizureMarker?.active && seizureMarker.start && seizureMarker.end ? [{
+              type: 'rect',
+              xref: 'x',
+              yref: 'paper',
+              x0: parseFloat(seizureMarker.start),
+              x1: parseFloat(seizureMarker.end),
+              y0: 0,
+              y1: 1,
+              fillcolor: 'rgba(214, 59, 70, 0.15)',
+              line: { color: 'rgba(214, 59, 70, 0.8)', width: 2, dash: 'dashdot' }
+            }] : []
           }}
           config={{ responsive: true, displayModeBar: false }}
           style={{ width: '100%', height: '380px' }}
           useResizeHandler
+          onRelayout={onRelayout}
         />
       </div>
     </section>
@@ -83,9 +132,10 @@ function StftPanel({ data, channelNames }) {
 }
 
 // ─── DWT Panel ───────────────────────────────────────────────────────────────
-function DwtPanel({ data, channelNames }) {
+function DwtPanel({ data, signalData, channelNames, seizureMarker, onRelayout }) {
   const [selCh, setSelCh] = useState('ch0')
   const [mode3d, setMode3d] = useState(false)
+  const [showSignal, setShowSignal] = useState(false)
 
   const chEnergy = data.energy[selCh] || {}
   const subbands = data.subbands || ['A5', 'D5', 'D4', 'D3']
@@ -96,26 +146,63 @@ function DwtPanel({ data, channelNames }) {
 
   const plot2d = (
     <Plot
-      data={[{
-        type: 'heatmap',
-        z: zMatrix,
-        x: times,
-        y: subbands,
-        colorscale: 'Hot',
-        colorbar: { title: 'Energía' },
-      }]}
+      data={[
+        {
+          type: 'heatmap',
+          z: zMatrix,
+          x: times,
+          y: subbands,
+          colorscale: 'Hot',
+          colorbar: { title: 'Energía', x: 1.15 },
+        },
+        ...(showSignal && signalData ? [{
+          type: 'scatter',
+          mode: 'lines',
+          x: signalData.times,
+          y: signalData.amplitudes[selCh],
+          yaxis: 'y2',
+          line: { color: '#2d7f7f', width: 1.5 },
+          name: 'Señal original'
+        }] : [])
+      ]}
       layout={{
         paper_bgcolor: 'transparent',
         plot_bgcolor: '#f8fafc',
         font: { color: '#1e293b', family: 'Inter' },
-        xaxis: { title: 'Tiempo (min)', gridcolor: 'rgba(0,0,0,0.05)' },
-        yaxis: { title: 'Sub-banda', gridcolor: 'rgba(0,0,0,0.05)', autorange: 'reversed' },
-        margin: { t: 20, l: 60, r: 20, b: 50 },
+        xaxis: { title: 'Tiempo (s)', gridcolor: 'rgba(0,0,0,0.05)' },
+        yaxis: { 
+          title: 'Sub-banda', 
+          gridcolor: 'rgba(0,0,0,0.05)', 
+          autorange: 'reversed',
+          domain: showSignal ? [0, 0.7] : [0, 1]
+        },
+        ...(showSignal ? {
+          yaxis2: { 
+            title: 'Amplitud (µV)', 
+            domain: [0.75, 1],
+            showgrid: true,
+            gridcolor: 'rgba(0,0,0,0.05)',
+            zeroline: true
+          }
+        } : {}),
+        margin: { t: 30, l: 60, r: 20, b: 50 },
         autosize: true,
+        shapes: seizureMarker?.active && seizureMarker.start && seizureMarker.end ? [{
+          type: 'rect',
+          xref: 'x',
+          yref: 'paper',
+          x0: parseFloat(seizureMarker.start),
+          x1: parseFloat(seizureMarker.end),
+          y0: 0,
+          y1: 1,
+          fillcolor: 'rgba(214, 59, 70, 0.15)',
+          line: { color: 'rgba(214, 59, 70, 0.8)', width: 2, dash: 'dashdot' }
+        }] : []
       }}
       config={{ responsive: true, displayModeBar: false }}
       style={{ width: '100%', height: '380px' }}
       useResizeHandler
+      onRelayout={onRelayout}
     />
   )
 
@@ -144,6 +231,7 @@ function DwtPanel({ data, channelNames }) {
       config={{ responsive: true, displayModeBar: true, modeBarButtonsToRemove: ['toImage'] }}
       style={{ width: '100%', height: '480px' }}
       useResizeHandler
+      onRelayout={onRelayout}
     />
   )
 
@@ -156,6 +244,13 @@ function DwtPanel({ data, channelNames }) {
       <div className={styles.controlsRow}>
         <div style={{ flex: 1 }}>
           <ChannelSelector channels={channelNames} value={selCh} onChange={setSelCh} />
+        </div>
+        <div className={styles.toggleWrap}>
+          <span className={styles.toggleInactive}>Ver Señal Original</span>
+          <label className={styles.switch}>
+            <input type="checkbox" checked={showSignal} onChange={e => setShowSignal(e.target.checked)} disabled={mode3d} />
+            <span className={styles.slider} />
+          </label>
         </div>
         <div className={styles.toggleWrap}>
           <span className={!mode3d ? styles.toggleActive : styles.toggleInactive}>2D</span>
@@ -174,8 +269,10 @@ function DwtPanel({ data, channelNames }) {
 }
 
 // ─── LPC Panel ───────────────────────────────────────────────────────────────
-function LpcPanel({ data, channelNames }) {
+function LpcPanel({ data, signalData, channelNames, seizureMarker, onRelayout }) {
   const [selCh, setSelCh] = useState('ch0')
+  const [mode3d, setMode3d] = useState(false)
+  const [showSignal, setShowSignal] = useState(false)
 
   const chCoeffs = data.coefficients[selCh] || []
   const coeffLabels = data.coeff_labels || []
@@ -201,45 +298,136 @@ function LpcPanel({ data, channelNames }) {
       <p className={styles.panelDesc}>
         12 coeficientes LPC · Algoritmo Levinson-Durbin · Ventana Hanning 1s · Solapamiento 50% · Normalización Z-score por coeficiente
       </p>
-      <ChannelSelector channels={channelNames} value={selCh} onChange={setSelCh} />
+      <div className={styles.controlsRow}>
+        <div style={{ flex: 1 }}>
+          <ChannelSelector channels={channelNames} value={selCh} onChange={setSelCh} />
+        </div>
+        <div className={styles.toggleWrap}>
+          <span className={styles.toggleInactive}>Ver Señal Original</span>
+          <label className={styles.switch}>
+            <input type="checkbox" checked={showSignal} onChange={e => setShowSignal(e.target.checked)} disabled={mode3d} />
+            <span className={styles.slider} />
+          </label>
+        </div>
+        <div className={styles.toggleWrap}>
+          <span className={!mode3d ? styles.toggleActive : styles.toggleInactive}>2D</span>
+          <label className={styles.switch}>
+            <input type="checkbox" checked={mode3d} onChange={e => setMode3d(e.target.checked)} />
+            <span className={styles.slider} />
+          </label>
+          <span className={mode3d ? styles.toggleActive : styles.toggleInactive}>3D</span>
+        </div>
+      </div>
       <div className={styles.plotWrap}>
-        <Plot
-          data={[{
-            type: 'heatmap',
-            z: zMatrix,
-            x: times,
-            y: coeffLabels,
-            colorscale: [
-              [0.0,  '#1a237e'],
-              [0.2,  '#1565c0'],
-              [0.4,  '#4fc3f7'],
-              [0.5,  '#f5f5f5'],
-              [0.6,  '#ffb74d'],
-              [0.8,  '#e53935'],
-              [1.0,  '#7b1fa2'],
-            ],
-            zmid: 0,
-            zmin: -3,
-            zmax:  3,
-            colorbar: {
-              title: 'Z-score',
-              tickvals: [-3, -2, -1, 0, 1, 2, 3],
-              ticktext: ['-3σ', '-2σ', '-1σ', '0', '+1σ', '+2σ', '+3σ'],
+        {!mode3d ? (
+          <Plot
+            data={[
+              {
+                type: 'heatmap',
+                z: zMatrix,
+                x: times,
+                y: coeffLabels,
+              colorscale: [
+                [0.0,  '#1a237e'],
+                [0.2,  '#1565c0'],
+                [0.4,  '#4fc3f7'],
+                [0.5,  '#f5f5f5'],
+                [0.6,  '#ffb74d'],
+                [0.8,  '#e53935'],
+                [1.0,  '#7b1fa2'],
+              ],
+              zmid: 0,
+              zmin: -3,
+              zmax:  3,
+              colorbar: {
+                title: 'Z-score',
+                tickvals: [-3, -2, -1, 0, 1, 2, 3],
+                ticktext: ['-3σ', '-2σ', '-1σ', '0', '+1σ', '+2σ', '+3σ'],
+                x: 1.15
+              },
             },
-          }]}
-          layout={{
-            paper_bgcolor: 'transparent',
-            plot_bgcolor: '#f8fafc',
-            font: { color: '#1e293b', family: 'Inter' },
-            xaxis: { title: 'Tiempo (s)', gridcolor: 'rgba(0,0,0,0.05)' },
-            yaxis: { title: 'Coeficiente', gridcolor: 'rgba(0,0,0,0.05)', autorange: 'reversed' },
-            margin: { t: 20, l: 60, r: 80, b: 50 },
-            autosize: true,
-          }}
-          config={{ responsive: true, displayModeBar: false }}
-          style={{ width: '100%', height: '420px' }}
-          useResizeHandler
-        />
+            ...(showSignal && signalData ? [{
+              type: 'scatter',
+              mode: 'lines',
+              x: signalData.times,
+              y: signalData.amplitudes[selCh],
+              yaxis: 'y2',
+              line: { color: '#2d7f7f', width: 1.5 },
+              name: 'Señal original'
+            }] : [])
+            ]}
+            layout={{
+              paper_bgcolor: 'transparent',
+              plot_bgcolor: '#f8fafc',
+              font: { color: '#1e293b', family: 'Inter' },
+              xaxis: { title: 'Tiempo (s)', gridcolor: 'rgba(0,0,0,0.05)' },
+              yaxis: { 
+                title: 'Coeficiente', 
+                gridcolor: 'rgba(0,0,0,0.05)', 
+                autorange: 'reversed',
+                domain: showSignal ? [0, 0.7] : [0, 1]
+              },
+              ...(showSignal ? {
+                yaxis2: { 
+                  title: 'Amplitud (µV)', 
+                  domain: [0.75, 1],
+                  showgrid: true,
+                  gridcolor: 'rgba(0,0,0,0.05)',
+                  zeroline: true
+                }
+              } : {}),
+              margin: { t: 30, l: 60, r: 80, b: 50 },
+              autosize: true,
+              shapes: seizureMarker?.active && seizureMarker.start && seizureMarker.end ? [{
+                type: 'rect',
+                xref: 'x',
+                yref: 'paper',
+                x0: parseFloat(seizureMarker.start),
+                x1: parseFloat(seizureMarker.end),
+                y0: 0,
+                y1: 1,
+                fillcolor: 'rgba(214, 59, 70, 0.15)',
+                line: { color: 'rgba(214, 59, 70, 0.8)', width: 2, dash: 'dashdot' }
+              }] : []
+            }}
+            config={{ responsive: true, displayModeBar: false }}
+            style={{ width: '100%', height: '420px' }}
+            useResizeHandler
+            onRelayout={onRelayout}
+          />
+        ) : (
+          <Plot
+            data={[{
+              type: 'surface',
+              z: zMatrix,
+              x: times,
+              y: coeffLabels,
+              colorscale: [
+                [0.0,  '#1a237e'],
+                [0.2,  '#1565c0'],
+                [0.4,  '#4fc3f7'],
+                [0.5,  '#f5f5f5'],
+                [0.6,  '#ffb74d'],
+                [0.8,  '#e53935'],
+                [1.0,  '#7b1fa2'],
+              ],
+              cmin: -3,
+              cmax: 3,
+              colorbar: { title: 'Z-score', x: 1.1 }
+            }]}
+            layout={{
+              paper_bgcolor: 'transparent',
+              plot_bgcolor: '#f8fafc',
+              font: { color: '#1e293b', family: 'Inter' },
+              margin: { t: 20, l: 0, r: 0, b: 0 },
+              autosize: true,
+            }}
+            config={{ responsive: true, displayModeBar: true, modeBarButtonsToRemove: ['toImage'] }}
+            style={{ width: '100%', height: '480px' }}
+            useResizeHandler
+            onRelayout={onRelayout}
+          />
+        )}
       </div>
     </section>
   )
@@ -252,11 +440,15 @@ export default function ProcessingPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [results, setResults] = useState(null)
+  const [macroResults, setMacroResults] = useState(null)
+  const [isZooming, setIsZooming] = useState(false)
+  const [seizureMarker, setSeizureMarker] = useState({ start: '', end: '', active: false, showInput: false })
 
   const handleFileChange = useCallback(e => {
     if (e.target.files?.length > 0) {
       setFile(e.target.files[0])
       setResults(null)
+      setMacroResults(null)
       setError(null)
     }
   }, [])
@@ -267,6 +459,7 @@ export default function ProcessingPage() {
     if (f?.name.endsWith('.edf')) {
       setFile(f)
       setResults(null)
+      setMacroResults(null)
       setError(null)
     }
   }, [])
@@ -287,12 +480,58 @@ export default function ProcessingPage() {
       }
       const data = await res.json()
       setResults(data)
+      setMacroResults(data)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
   }
+
+  const [debugLog, setDebugLog] = useState("");
+
+  const handleRelayout = useCallback(async (event) => {
+    if (!macroResults || !macroResults.file_id) return;
+
+    let start = undefined;
+    let end = undefined;
+    let isAutorange = Object.keys(event).some(k => k.includes('autorange') && event[k] === true);
+
+    for (const key in event) {
+      if (key.includes('range[0]')) start = parseFloat(event[key]);
+      if (key.includes('range[1]')) end = parseFloat(event[key]);
+      if (key.includes('range') && Array.isArray(event[key])) {
+        start = parseFloat(event[key][0]);
+        end = parseFloat(event[key][1]);
+      }
+      if (key === 'xaxis.range[0]') start = parseFloat(event[key]);
+      if (key === 'xaxis.range[1]') end = parseFloat(event[key]);
+    }
+
+    if (isAutorange) {
+      setResults(macroResults);
+      setDebugLog(""); // clear banner
+      return;
+    }
+
+    if (start !== undefined && end !== undefined && !isNaN(start) && !isNaN(end)) {
+      const windowSize = end - start;
+      if (windowSize <= 600) {
+        setIsZooming(true);
+        try {
+          const res = await fetch(`/api/segment/${macroResults.file_id}?start=${start}&end=${end}`);
+          if (res.ok) {
+            const highResData = await res.json();
+            setResults(highResData);
+          }
+        } catch (err) {
+          console.error("Error fetching high-res segment:", err);
+        } finally {
+          setIsZooming(false);
+        }
+      }
+    }
+  }, [macroResults]);
 
   const channelNames = results?.channel_names || CHANNEL_OPTIONS
 
@@ -301,6 +540,7 @@ export default function ProcessingPage() {
       <header className={styles.header}>
         <h1 className={styles.title}>Análisis de Señal EEG</h1>
       </header>
+      {debugLog && <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 9999, background: 'red', color: 'white', padding: 30, fontSize: 20, border: '4px solid black', wordBreak: 'break-all', maxWidth: '80vw'}}>{debugLog}</div>}
 
       <main className={styles.main}>
         {/* Upload Zone */}
@@ -352,9 +592,33 @@ export default function ProcessingPage() {
               <span>📡 {results.fs} Hz · 23 canales</span>
             </div>
 
-            <StftPanel data={results.stft} channelNames={channelNames} />
-            <DwtPanel data={results.dwt} channelNames={channelNames} />
-            <LpcPanel data={results.lpc} channelNames={channelNames} />
+            <div className={styles.markerControls}>
+              {!seizureMarker.showInput ? (
+                <button 
+                  className={styles.markerBtn} 
+                  onClick={() => setSeizureMarker(s => ({...s, showInput: true}))}
+                >
+                  📍 Añadir marcador de crisis
+                </button>
+              ) : (
+                <div className={styles.markerInputs}>
+                  <label>Inicio (s): <input type="number" min="0" value={seizureMarker.start} onChange={e => setSeizureMarker(s => ({...s, start: e.target.value}))} /></label>
+                  <label>Fin (s): <input type="number" min="0" value={seizureMarker.end} onChange={e => setSeizureMarker(s => ({...s, end: e.target.value}))} /></label>
+                  <button className={styles.markerBtnApply} onClick={() => setSeizureMarker(s => ({...s, active: true}))}>Aplicar</button>
+                  <button className={styles.markerBtnCancel} onClick={() => setSeizureMarker({start:'', end:'', active:false, showInput:false})}>Cancelar</button>
+                </div>
+              )}
+            </div>
+
+            <StftPanel data={results.stft} signalData={results.signal} channelNames={channelNames} seizureMarker={seizureMarker} onRelayout={handleRelayout} />
+            <DwtPanel data={results.dwt} signalData={results.signal} channelNames={channelNames} seizureMarker={seizureMarker} onRelayout={handleRelayout} />
+            <LpcPanel data={results.lpc} signalData={results.signal} channelNames={channelNames} seizureMarker={seizureMarker} onRelayout={handleRelayout} />
+          </div>
+        )}
+
+        {isZooming && (
+          <div style={{ position: 'fixed', bottom: 20, right: 20, background: 'rgba(5, 150, 105, 0.9)', color: 'white', padding: '8px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', zIndex: 100 }}>
+            ⏳ Cargando alta resolución...
           </div>
         )}
       </main>
