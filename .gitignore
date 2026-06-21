@@ -1,8 +1,7 @@
-/data/
-models_saved/
-__pycache__/
-*.pyc
-.ipynb_checkpoints/
+# Data
+/data/processed/
+/data/raw/
+/data/**/*.json.gz
 
 # Temporal files
 .tmp/
@@ -12,3 +11,7 @@ src/api/.tmp/
 .venv/
 venv/
 dashboard/node_modules/
+models_saved/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

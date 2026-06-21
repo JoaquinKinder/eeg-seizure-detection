@@ -489,28 +489,38 @@ export default function ProcessingPage() {
   }
 
   const [debugLog, setDebugLog] = useState("");
+  const macroResultsRef = useRef(null);
+  const ignoreRelayoutUntilRef = useRef(0);
+
+  useEffect(() => {
+    macroResultsRef.current = macroResults;
+  }, [macroResults]);
 
   const handleRelayout = useCallback(async (event) => {
-    if (!macroResults || !macroResults.file_id) return;
+    // Cuando nosotros cambiamos los datos (setResults), los 3 paneles (STFT, DWT, LPC)
+    // re-renderizan y cada uno dispara onRelayout. Bloqueamos TODOS durante 1 segundo
+    // después de un cambio programático para evitar que reviertan los datos.
+    if (Date.now() < ignoreRelayoutUntilRef.current) {
+      return;
+    }
+
+    const currentMacro = macroResultsRef.current;
+    if (!currentMacro || !currentMacro.file_id) {
+      return;
+    }
 
     let start = undefined;
     let end = undefined;
     let isAutorange = Object.keys(event).some(k => k.includes('autorange') && event[k] === true);
 
     for (const key in event) {
-      if (key.includes('range[0]')) start = parseFloat(event[key]);
-      if (key.includes('range[1]')) end = parseFloat(event[key]);
-      if (key.includes('range') && Array.isArray(event[key])) {
-        start = parseFloat(event[key][0]);
-        end = parseFloat(event[key][1]);
-      }
       if (key === 'xaxis.range[0]') start = parseFloat(event[key]);
       if (key === 'xaxis.range[1]') end = parseFloat(event[key]);
     }
 
     if (isAutorange) {
-      setResults(macroResults);
-      setDebugLog(""); // clear banner
+      ignoreRelayoutUntilRef.current = Date.now() + 1000;
+      setResults(currentMacro);
       return;
     }
 
@@ -519,10 +529,13 @@ export default function ProcessingPage() {
       if (windowSize <= 600) {
         setIsZooming(true);
         try {
-          const res = await fetch(`/api/segment/${macroResults.file_id}?start=${start}&end=${end}`);
+          const res = await fetch(`/api/zoom/${currentMacro.file_id}?start=${start}&end=${end}`);
           if (res.ok) {
             const highResData = await res.json();
+            ignoreRelayoutUntilRef.current = Date.now() + 1000;
             setResults(highResData);
+          } else {
+            console.error("Zoom error: status", res.status);
           }
         } catch (err) {
           console.error("Error fetching high-res segment:", err);
@@ -531,7 +544,7 @@ export default function ProcessingPage() {
         }
       }
     }
-  }, [macroResults]);
+  }, []);
 
   const channelNames = results?.channel_names || CHANNEL_OPTIONS
 
@@ -540,7 +553,6 @@ export default function ProcessingPage() {
       <header className={styles.header}>
         <h1 className={styles.title}>Análisis de Señal EEG</h1>
       </header>
-      {debugLog && <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 9999, background: 'red', color: 'white', padding: 30, fontSize: 20, border: '4px solid black', wordBreak: 'break-all', maxWidth: '80vw'}}>{debugLog}</div>}
 
       <main className={styles.main}>
         {/* Upload Zone */}
@@ -621,6 +633,8 @@ export default function ProcessingPage() {
             ⏳ Cargando alta resolución...
           </div>
         )}
+
+
       </main>
     </div>
   )
