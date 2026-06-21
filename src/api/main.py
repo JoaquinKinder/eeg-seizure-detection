@@ -243,7 +243,9 @@ async def get_zoom(file_id: str, start: float, end: float):
 
 
 # ── Endpoints de Registros Históricos ─────────────────────────────────────────
-HISTORY_DIR = os.path.join(os.path.dirname(__file__), '../../data/processed/history')
+HISTORY_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/processed/history'))
+print(f"[INIT] HISTORY_DIR = {HISTORY_DIR}")
+print(f"[INIT] index.json exists: {os.path.exists(os.path.join(HISTORY_DIR, 'index.json'))}")
 
 @app.get("/history/index")
 async def history_index():

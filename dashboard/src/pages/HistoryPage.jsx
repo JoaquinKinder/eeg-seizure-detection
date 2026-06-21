@@ -505,7 +505,10 @@ export default function HistoryPage() {
   // Cargar índice de pacientes al montar
   useEffect(() => {
     fetch('/api/history/index')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`El backend respondió con error ${r.status}. ¿Está corriendo el servidor en el puerto 8000?`)
+        return r.json()
+      })
       .then(data => {
         setPatients(data)
         if (data.length > 0) setSelectedPatient(data[0])
