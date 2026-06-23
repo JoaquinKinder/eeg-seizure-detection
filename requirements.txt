@@ -3,3 +3,7 @@ scipy
 pywavelets
 scikit-learn
 matplotlib
+fastapi
+uvicorn
+python-multipart
+mne
